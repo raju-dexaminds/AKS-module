@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: <ACR_LOGIN_SERVER>/spring-backend:latest
+          image: acraksprod123.azurecr.io/spring-backend:latest
           ports:
             - containerPort: 8080
 ---
