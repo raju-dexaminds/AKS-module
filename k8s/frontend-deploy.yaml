@@ -23,7 +23,7 @@ kind: Service
 metadata:
   name: react-frontend-svc
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
     app: react-frontend
   ports:
