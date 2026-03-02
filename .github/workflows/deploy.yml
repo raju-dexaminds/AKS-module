@@ -1,0 +1,67 @@
+name: FullStack CI-CD to AKS
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  IMAGE_BACKEND: spring-backend
+  IMAGE_FRONTEND: react-frontend
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+
+      # 🔐 Azure Login
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # 🔑 ACR Login
+      - name: Login to ACR
+        run: az acr login --name $(echo ${{ secrets.ACR_LOGIN_SERVER }} | cut -d'.' -f1)
+
+      # 🏗 Build Backend Image
+      - name: Build Backend Image
+        run: |
+          docker build -f docker/backend.Dockerfile -t ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_BACKEND }}:${{ github.sha }} .
+
+      # 📤 Push Backend Image
+      - name: Push Backend Image
+        run: |
+          docker push ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_BACKEND }}:${{ github.sha }}
+
+      # 🏗 Build Frontend Image
+      - name: Build Frontend Image
+        run: |
+          docker build -f docker/frontend.Dockerfile -t ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_FRONTEND }}:${{ github.sha }} .
+
+      # 📤 Push Frontend Image
+      - name: Push Frontend Image
+        run: |
+          docker push ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_FRONTEND }}:${{ github.sha }}
+
+      # 🔄 Replace Image Tags in YAML
+      - name: Update K8s Image Tags
+        run: |
+          sed -i "s|<ACR_LOGIN_SERVER>|${{ secrets.ACR_LOGIN_SERVER }}|g" k8s/*.yaml
+          sed -i "s|latest|${{ github.sha }}|g" k8s/*.yaml
+
+      # 🔗 Get AKS Credentials
+      - name: Get AKS Credentials
+        run: |
+          az aks get-credentials \
+            --resource-group ${{ secrets.RESOURCE_GROUP }} \
+            --name ${{ secrets.AKS_CLUSTER }} \
+            --overwrite-existing
+
+      # 🚀 Deploy to AKS
+      - name: Deploy to AKS
+        run: |
+          kubectl apply -f k8s/backend-deploy.yaml
+          kubectl apply -f k8s/frontend-deploy.yaml
