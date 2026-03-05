@@ -1,29 +1,29 @@
 variable "location" {
-  description = "Azure region"
   type        = string
+  description = "Azure region"
 }
 
 variable "resource_group_name" {
-  description = "AKS Resource Group"
   type        = string
+  description = "AKS resource group name"
 }
 
 variable "acr_name" {
-  description = "ACR Name"
   type        = string
+  description = "Azure Container Registry name"
 }
 
 variable "aks_name" {
-  description = "AKS Cluster Name"
   type        = string
+  description = "AKS cluster name"
 }
 
 variable "node_count" {
-  description = "AKS Node Count"
   type        = number
+  description = "AKS node count"
 }
 
 variable "vm_size" {
-  description = "VM Size for AKS"
   type        = string
+  description = "AKS VM size"
 }

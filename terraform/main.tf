@@ -1,64 +1,31 @@
-resource "azurerm_resource_group" "rg" {
-  name     = var.resource_group_name
-  location = var.location
+module "resource_group" {
+  source = "./modules/resource_group"
+
+  resource_group_name = var.resource_group_name
+  location            = var.location
 }
 
-# ACR
-resource "azurerm_container_registry" "acr" {
-  name                = var.acr_name
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-  sku                 = "Standard"
-  admin_enabled       = true
+module "acr" {
+  source = "./modules/acr"
+
+  acr_name            = var.acr_name
+  location            = var.location
+  resource_group_name = module.resource_group.resource_group_name
 }
 
-# AKS Cluster
-resource "azurerm_kubernetes_cluster" "aks" {
-  name                = var.aks_name
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-  dns_prefix          = "aksprod"
+module "aks" {
+  source = "./modules/aks"
 
-  default_node_pool {
-    name       = "systempool"
-    node_count = var.node_count
-    vm_size    = var.vm_size
-  }
-
-  identity {
-    type = "SystemAssigned"
-  }
-
-  network_profile {
-    network_plugin = "azure"
-  }
+  aks_name            = var.aks_name
+  location            = var.location
+  resource_group_name = module.resource_group.resource_group_name
+  node_count          = var.node_count
+  vm_size             = var.vm_size
+  acr_id              = module.acr.acr_id
 }
 
-# Allow AKS to pull images from ACR
-resource "azurerm_role_assignment" "acr_pull" {
-  scope                = azurerm_container_registry.acr.id
-  role_definition_name = "AcrPull"
-  principal_id         = azurerm_kubernetes_cluster.aks.kubelet_identity[0].object_id
+module "ingress" {
+  source = "./modules/ingress"
 
-  depends_on = [
-    azurerm_kubernetes_cluster.aks,
-    azurerm_container_registry.acr
-  ]
-}
-
-provider "helm" {
-  kubernetes = {
-    host                   = azurerm_kubernetes_cluster.aks.kube_config[0].host
-    client_certificate     = base64decode(azurerm_kubernetes_cluster.aks.kube_config[0].client_certificate)
-    client_key             = base64decode(azurerm_kubernetes_cluster.aks.kube_config[0].client_key)
-    cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.aks.kube_config[0].cluster_ca_certificate)
-  }
-}
-
-resource "helm_release" "nginx_ingress" {
-  name             = "ingress-nginx"
-  namespace        = "ingress-nginx"
-  create_namespace = true
-  repository       = "https://kubernetes.github.io/ingress-nginx"
-  chart            = "ingress-nginx"
+  kube_config = module.aks.kube_config
 }
