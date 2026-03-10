@@ -1,5 +1,5 @@
 location            = "East US"
-resource_group_name = "rg-aks-pro"
+resource_group_name = "rg"
 acr_name            = "acraksprod123"
 aks_name            = "aks-prod-cluster"
 node_count          = 2
